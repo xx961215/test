@@ -1,0 +1,79 @@
+{{- /*
+
+This template defines the "Supported tags and Dockerfile links" portion of an image description.
+
+*/ -}}
+
+{{- $archSpecific := getenv "ARCH_SPECIFIC_DOCS" -}}
+
+{{- $sharedTagGroups := .Manifest.GetSharedTagGroups -}}
+{{- if (len $sharedTagGroups) -}}
+	(See ["What's the difference between 'Shared' and 'Simple' tags?" in the FAQ](https://github.com/docker-library/faq#whats-the-difference-between-shared-and-simple-tags).)
+	{{- "\n\n" -}}
+	## Simple Tags
+	{{- "\n\n" -}}
+{{- end -}}
+
+{{- range $i, $e := ($archSpecific | ternary (archFilter arch $.Entries) $.Entries) -}}
+	{{- $arch := $archSpecific | ternary arch ($e.HasArchitecture arch | ternary arch ($e.Architectures | first)) -}}
+
+	{{- /* force bashbrew to "fetch" the GitCommit so that it is fully resolved */ -}}
+	{{- $froms := $.ArchDockerFroms $arch $e -}}
+
+	{{- $gitRepo := $e.ArchGitRepo $arch -}}
+	{{- $repoUrlBase := $gitRepo | replace "git://" "https://" | trimSuffixes ".git" -}}
+	{{- $isGitHub := hasPrefix "https://github.com/" $repoUrlBase -}}
+
+	{{- if $i -}}
+		{{- "\n" -}}
+	{{- end -}}
+
+	- {{- "\t" -}}
+	{{- if $isGitHub -}} [ {{- end -}}
+	{{- $dir := .ArchDirectory $arch -}}
+	{{- $dockerfile := .ArchFile $arch -}}
+	{{- $dockerfilePath := eq $dir "." | ternary $dockerfile (join "/" $dir $dockerfile) -}}
+	` {{- $e.Tags | join "`, `" -}} `
+	{{- $gitCommit := $e.ArchGitCommit $arch -}}
+	{{- if $isGitHub -}} ]( {{- $repoUrlBase -}} /blob/ {{- $gitCommit -}} / {{- $dockerfilePath -}} ) {{- end -}}
+	{{- /* TODO decide what to do (if anything) about non-GitHub repos with respect to URL */ -}}
+{{- end -}}
+{{- "\n\n" -}}
+
+{{- if (len $sharedTagGroups) -}}
+	{{- "## Shared Tags\n\n" -}}
+
+	{{- range $sharedTagGroups -}}
+		{{- $entries := $archSpecific | ternary (archFilter arch .Entries) .Entries -}}
+
+		{{- if (len $entries) -}}
+			{{- "-\t`" -}}
+			{{ .SharedTags | join "`, `" }}
+			{{- "`:\n" -}}
+
+			{{- range $i, $e := $entries -}}
+				{{- $arch := $archSpecific | ternary arch ($e.HasArchitecture arch | ternary arch ($e.Architectures | first)) -}}
+
+				{{- /* force bashbrew to "fetch" the GitCommit so that it is fully resolved */ -}}
+				{{- $froms := $.ArchDockerFroms $arch $e -}}
+
+				{{- $gitRepo := $e.ArchGitRepo $arch -}}
+				{{- $repoUrlBase := $gitRepo | replace "git://" "https://" | trimSuffixes ".git" -}}
+				{{- $isGitHub := hasPrefix "https://github.com/" $repoUrlBase -}}
+
+				{{- "\t-\t" -}}
+				{{- if $isGitHub -}} [ {{- end -}}
+				{{- $dir := .ArchDirectory $arch -}}
+				{{- $dockerfile := .ArchFile $arch -}}
+				{{- $dockerfilePath := eq $dir "." | ternary $dockerfile (join "/" $dir $dockerfile) -}}
+				` {{- $e.Tags | first -}} `
+				{{- $gitCommit := $e.ArchGitCommit $arch -}}
+				{{- if $isGitHub -}} ]( {{- $repoUrlBase -}} /blob/ {{- $gitCommit -}} / {{- $dockerfilePath -}} ) {{- end -}}
+				{{- /* TODO decide what to do (if anything) about non-GitHub repos with respect to URL */ -}}
+
+				{{- "\n" -}}
+			{{- end -}}
+		{{- end -}}
+	{{- end -}}
+	{{- "\n" -}}
+{{- end -}}
